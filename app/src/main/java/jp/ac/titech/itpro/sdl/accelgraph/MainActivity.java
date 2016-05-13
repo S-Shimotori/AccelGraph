@@ -31,6 +31,12 @@ public class MainActivity extends Activity implements SensorEventListener {
     private int accuracy;
     private long prevts;
 
+    private final int N = 5;
+    private float[] ax = new float[N];
+    private float[] ay = new float[N];
+    private float[] az = new float[N];
+    private int id = 0;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -74,9 +80,23 @@ public class MainActivity extends Activity implements SensorEventListener {
 
     @Override
     public void onSensorChanged(SensorEvent event) {
-        vx = event.values[0];
-        vy = event.values[1];
-        vz = event.values[2];
+        ax[id] = event.values[0];
+        ay[id] = event.values[1];
+        az[id] = event.values[2];
+
+        float sx = 0;
+        float sy = 0;
+        float sz = 0;
+        for (int i = 0; i < N; i++) {
+            sx = sx + ax[i];
+            sy = sy + ay[i];
+            sz = sz + az[i];
+        }
+        vx = sx / N;
+        vy = sy / N;
+        vz = sz / N;
+        id = (id + 1) % N;
+
         rate = ((float) (event.timestamp - prevts)) / (1000 * 1000);
         prevts = event.timestamp;
     }
