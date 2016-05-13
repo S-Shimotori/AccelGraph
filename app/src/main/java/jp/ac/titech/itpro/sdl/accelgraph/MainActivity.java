@@ -1,6 +1,8 @@
 package jp.ac.titech.itpro.sdl.accelgraph;
 
 import android.app.Activity;
+import android.content.ContentValues;
+import android.database.sqlite.SQLiteDatabase;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -40,6 +42,8 @@ public class MainActivity extends Activity implements SensorEventListener {
     private int acceleroId = 0;
     private int lightId = 0;
 
+    static SQLiteDatabase database;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -68,6 +72,10 @@ public class MainActivity extends Activity implements SensorEventListener {
         }
 
         handler = new Handler();
+
+
+        AccelGraphSQLiteOpenHelper helper = new AccelGraphSQLiteOpenHelper(getApplicationContext());
+        database = helper.getWritableDatabase();
     }
 
     @Override
@@ -110,6 +118,9 @@ public class MainActivity extends Activity implements SensorEventListener {
                 break;
             case Sensor.TYPE_LIGHT:
                 vx = (event.values[0]) / -50.0F;
+                ContentValues values = new ContentValues();
+                values.put("data", event.values[0]);
+                database.insert("mytable", null, values);
                 break;
         }
     }
