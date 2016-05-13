@@ -20,6 +20,7 @@ public class MainActivity extends Activity implements SensorEventListener {
 
     private SensorManager sensorMgr;
     private Sensor accelerometer;
+    private Sensor lightmeter;
 
     private final static long GRAPH_REFRESH_WAIT_MS = 20;
 
@@ -31,11 +32,13 @@ public class MainActivity extends Activity implements SensorEventListener {
     private int accuracy;
     private long prevts;
 
-    private final int N = 5;
-    private float[] ax = new float[N];
-    private float[] ay = new float[N];
-    private float[] az = new float[N];
-    private int id = 0;
+    private final int ACCELERO_N = 5;
+    private final int LIGHT_N = 5;
+    private float[] ax = new float[LIGHT_N];
+    private float[] ay = new float[ACCELERO_N];
+    private float[] az = new float[ACCELERO_N];
+    private int acceleroId = 0;
+    private int lightId = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -51,9 +54,15 @@ public class MainActivity extends Activity implements SensorEventListener {
 
         sensorMgr = (SensorManager) getSystemService(SENSOR_SERVICE);
         accelerometer = sensorMgr.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        lightmeter = sensorMgr.getDefaultSensor(Sensor.TYPE_LIGHT);
         if (accelerometer == null) {
             Toast.makeText(this, getString(R.string.toast_no_accel_error),
                     Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+        if (lightmeter == null) {
+            Toast.makeText(this, "No lightmeters available", Toast.LENGTH_SHORT).show();
             finish();
             return;
         }
@@ -66,6 +75,7 @@ public class MainActivity extends Activity implements SensorEventListener {
         super.onResume();
         Log.i(TAG, "onResume");
         sensorMgr.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_FASTEST);
+        sensorMgr.registerListener(this, lightmeter, SensorManager.SENSOR_DELAY_UI);
         th = new GraphRefreshThread();
         th.start();
     }
@@ -80,31 +90,36 @@ public class MainActivity extends Activity implements SensorEventListener {
 
     @Override
     public void onSensorChanged(SensorEvent event) {
-        ax[id] = event.values[0];
-        ay[id] = event.values[1];
-        az[id] = event.values[2];
+        switch (event.sensor.getType()) {
+            case Sensor.TYPE_ACCELEROMETER:
+                ay[acceleroId] = event.values[1];
+                az[acceleroId] = event.values[2];
 
-        float sx = 0;
-        float sy = 0;
-        float sz = 0;
-        for (int i = 0; i < N; i++) {
-            sx = sx + ax[i];
-            sy = sy + ay[i];
-            sz = sz + az[i];
+                float sy = 0;
+                float sz = 0;
+                for (int i = 0; i < ACCELERO_N; i++) {
+                    sy = sy + ay[i];
+                    sz = sz + az[i];
+                }
+                vy = sy / ACCELERO_N;
+                vz = sz / ACCELERO_N;
+                acceleroId = (acceleroId + 1) % ACCELERO_N;
+
+                rate = ((float) (event.timestamp - prevts)) / (1000 * 1000);
+                prevts = event.timestamp;
+                break;
+            case Sensor.TYPE_LIGHT:
+                vx = (event.values[0]) / -50.0F;
+                break;
         }
-        vx = sx / N;
-        vy = sy / N;
-        vz = sz / N;
-        id = (id + 1) % N;
-
-        rate = ((float) (event.timestamp - prevts)) / (1000 * 1000);
-        prevts = event.timestamp;
     }
 
     @Override
     public void onAccuracyChanged(Sensor sensor, int accuracy) {
-        Log.i(TAG, "onAccuracyChanged: ");
-        this.accuracy = accuracy;
+        if (sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
+            Log.i(TAG, "onAccuracyChanged: ");
+            this.accuracy = accuracy;
+        }
     }
 
     private class GraphRefreshThread extends Thread {
